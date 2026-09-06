@@ -37,9 +37,16 @@ export const useAppStore = create<AppState>()(
         })),
       importContacts: (newContacts) =>
         set((state) => {
-          // Prevent duplicates by checking phone numbers
-          const existingPhones = new Set(state.contacts.map(c => c.phone));
-          const uniqueNew = newContacts.filter(c => !existingPhones.has(c.phone));
+          // Prevent duplicates by checking phone numbers or emails
+          const existingIdentifiers = new Set(
+            state.contacts.flatMap(c => [c.phone, c.email].filter(Boolean))
+          );
+          
+          const uniqueNew = newContacts.filter(c => {
+            if (c.phone && existingIdentifiers.has(c.phone)) return false;
+            if (c.email && existingIdentifiers.has(c.email)) return false;
+            return true;
+          });
           
           const mappedNew = uniqueNew.map(c => ({
             ...c,

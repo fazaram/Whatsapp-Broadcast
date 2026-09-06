@@ -17,8 +17,13 @@ export const formatPhoneNumber = (phone: string): string => {
 
 export const isValidPhoneNumber = (phone: string): boolean => {
   const formatted = formatPhoneNumber(phone);
-  // Indonesian numbers generally start with 628 and are between 10 to 14 digits
-  return formatted.startsWith('62') && formatted.length >= 10 && formatted.length <= 15;
+  // Allow international numbers, just check digit length (typically 8 to 15 digits)
+  return formatted.length >= 8 && formatted.length <= 15;
+};
+
+export const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
 };
 
 export const generateWhatsAppLink = (phone: string, text: string): string => {

@@ -4,6 +4,7 @@ export interface Contact {
   id: string;
   name: string;
   phone: string;
+  email?: string;
   status: SendStatus;
   createdAt: number;
 }

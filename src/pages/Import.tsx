@@ -4,11 +4,12 @@ import { Upload, FileUp, AlertCircle, CheckCircle2 } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
-import { formatPhoneNumber, isValidPhoneNumber } from '../utils/phoneFormatter';
+import { formatPhoneNumber, isValidPhoneNumber, isValidEmail } from '../utils/phoneFormatter';
 
 interface PreviewContact {
   name: string;
   phone: string;
+  email: string;
   valid: boolean;
 }
 
@@ -23,34 +24,52 @@ export const Import: React.FC = () => {
       return;
     }
 
-    // Try to find the correct columns for Name and Phone
+    const headers = Object.keys(data[0] || {});
+    const lowerHeaders = headers.map(h => h.toLowerCase().trim());
     
-    let nameKey = Object.keys(data[0]).find(k => ['name', 'nama', 'nama lengkap'].includes(k.toLowerCase().trim()));
-    let phoneKey = Object.keys(data[0]).find(k => ['phone', 'nomor', 'whatsapp', 'phone number', 'no hp', 'nomor hp', 'no whatsapp'].includes(k.toLowerCase().trim()));
+    const findKey = (keywords: string[]) => {
+      return headers.find(h => keywords.some(k => h.toLowerCase().trim().includes(k)));
+    };
 
-    if (!nameKey || !phoneKey) {
-      // Fallback: If not found exactly, try substring match
-      nameKey = Object.keys(data[0]).find(k => k.toLowerCase().includes('nam'));
-      phoneKey = Object.keys(data[0]).find(k => k.toLowerCase().includes('phone') || k.toLowerCase().includes('nomor') || k.toLowerCase().includes('wa') || k.toLowerCase().includes('hp'));
-    }
+    const emailKey = findKey(['email']);
+    const firstNameKey = findKey(['first name', 'first_name']);
+    const lastNameKey = findKey(['last name', 'last_name']);
+    const nameKey = findKey(['name', 'nama']);
+    const phoneKey = findKey(['phone', 'nomor', 'wa', 'hp']);
 
-    if (!nameKey || !phoneKey) {
-      toast.error('Gagal mendeteksi kolom Nama dan Nomor. Pastikan header sesuai.');
+    if (!nameKey && !firstNameKey) {
+      toast.error('Gagal mendeteksi kolom Nama atau First Name.');
       return;
     }
 
     const processed: PreviewContact[] = data
-      .filter(row => row[nameKey!] && row[phoneKey!])
       .map(row => {
-        const name = String(row[nameKey!]).trim();
-        const rawPhone = String(row[phoneKey!]).trim();
-        const phone = formatPhoneNumber(rawPhone);
+        let name = '';
+        if (firstNameKey && row[firstNameKey]) {
+          name = String(row[firstNameKey]).trim();
+          if (lastNameKey && row[lastNameKey]) {
+            name += ' ' + String(row[lastNameKey]).trim();
+          }
+        } else if (nameKey && row[nameKey]) {
+          name = String(row[nameKey]).trim();
+        }
+
+        const rawPhone = phoneKey && row[phoneKey] ? String(row[phoneKey]).trim() : '';
+        const phone = rawPhone ? formatPhoneNumber(rawPhone) : '';
+        
+        const email = emailKey && row[emailKey] ? String(row[emailKey]).trim() : '';
+
+        const hasValidPhone = phone ? isValidPhoneNumber(phone) : false;
+        const hasValidEmail = email ? isValidEmail(email) : false;
+
         return {
           name,
           phone,
-          valid: isValidPhoneNumber(phone) && name.length >= 2
+          email,
+          valid: (hasValidPhone || hasValidEmail) && name.length >= 2
         };
-      });
+      })
+      .filter(row => row.name); // only keep rows that have at least a name
 
     setPreview(processed);
   };
@@ -110,6 +129,7 @@ export const Import: React.FC = () => {
     const validContacts = preview.filter(p => p.valid).map(p => ({
       name: p.name,
       phone: p.phone,
+      email: p.email,
     }));
 
     if (validContacts.length === 0) {
@@ -215,6 +235,7 @@ export const Import: React.FC = () => {
                   <tr>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Nama</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">WhatsApp (Formatted)</th>
+                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Email</th>
                     <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
                   </tr>
                 </thead>
@@ -222,7 +243,8 @@ export const Import: React.FC = () => {
                   {preview.map((row, idx) => (
                     <tr key={idx} className={row.valid ? 'hover:bg-gray-50' : 'bg-red-50'}>
                       <td className="px-6 py-3 text-sm text-gray-900">{row.name}</td>
-                      <td className="px-6 py-3 text-sm text-gray-900">{row.phone}</td>
+                      <td className="px-6 py-3 text-sm text-gray-900">{row.phone || '-'}</td>
+                      <td className="px-6 py-3 text-sm text-gray-900">{row.email || '-'}</td>
                       <td className="px-6 py-3 text-sm">
                         {row.valid ? (
                           <span className="inline-flex items-center text-green-700">

@@ -14,6 +14,7 @@ export const Contacts: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
+  const [newEmail, setNewEmail] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Sending state
@@ -22,7 +23,9 @@ export const Contacts: React.FC = () => {
   
   const filteredContacts = useMemo(() => {
     return contacts.filter((c) => {
-      const matchSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.phone.includes(searchTerm);
+      const matchSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          c.phone.includes(searchTerm) || 
+                          (c.email || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchStatus = filterStatus === 'All' ? true : c.status === filterStatus;
       return matchSearch && matchStatus;
     }).sort((a, b) => a.name.localeCompare(b.name));
@@ -30,15 +33,20 @@ export const Contacts: React.FC = () => {
 
   const handleAddContact = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName.trim() || !newPhone.trim()) return;
+    if (!newName.trim() || (!newPhone.trim() && !newEmail.trim())) {
+      toast.error('Mohon isi Nomor WA atau Email');
+      return;
+    }
     
     addContact({
       name: newName.trim(),
-      phone: formatPhoneNumber(newPhone),
+      phone: newPhone.trim() ? formatPhoneNumber(newPhone) : '',
+      email: newEmail.trim() || undefined,
     });
     
     setNewName('');
     setNewPhone('');
+    setNewEmail('');
     setShowAddModal(false);
     toast.success('Kontak ditambahkan');
   };
@@ -69,9 +77,15 @@ export const Contacts: React.FC = () => {
 
   const handleOpenWhatsApp = () => {
     if (!activeContact) return;
-    const msg = personalizeMessage(template.content, activeContact.name, activeContact.phone);
-    const link = generateWhatsAppLink(activeContact.phone, msg);
-    window.open(link, '_blank');
+    const msg = personalizeMessage(template.content, activeContact.name, activeContact.phone || '-');
+    
+    if (activeContact.phone) {
+      const link = generateWhatsAppLink(activeContact.phone, msg);
+      window.open(link, '_blank');
+    } else if (activeContact.email) {
+      const link = `mailto:${activeContact.email}?subject=${encodeURIComponent('Pesan dari ' + window.location.hostname)}&body=${encodeURIComponent(msg)}`;
+      window.open(link, '_blank');
+    }
     
     // Transition to confirmation state
     setConfirmSendContact(activeContact);
@@ -165,7 +179,7 @@ export const Contacts: React.FC = () => {
                   />
                 </th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Nama</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Nomor WhatsApp</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Kontak (WA / Email)</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Aksi</th>
               </tr>
@@ -189,7 +203,10 @@ export const Contacts: React.FC = () => {
                       />
                     </td>
                     <td className="px-6 py-4 font-medium text-gray-900">{contact.name}</td>
-                    <td className="px-6 py-4 text-gray-500">{contact.phone}</td>
+                    <td className="px-6 py-4 text-gray-500">
+                      {contact.phone && <div className="text-sm">WA: {contact.phone}</div>}
+                      {contact.email && <div className="text-sm">Email: {contact.email}</div>}
+                    </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
                         contact.status === 'Sudah Dikirim' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
@@ -206,7 +223,7 @@ export const Contacts: React.FC = () => {
                             : 'bg-green-600 text-white hover:bg-green-700'
                         }`}
                       >
-                        {contact.status === 'Sudah Dikirim' ? 'Kirim Ulang' : 'Kirim WA'}
+                        {contact.status === 'Sudah Dikirim' ? 'Kirim Ulang' : (contact.phone ? 'Kirim WA' : 'Kirim Email')}
                       </button>
                     </td>
                   </tr>
@@ -234,14 +251,23 @@ export const Contacts: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nomor WhatsApp</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nomor WhatsApp (Opsional jika ada Email)</label>
                 <input 
                   type="text" 
                   value={newPhone} 
                   onChange={(e) => setNewPhone(e.target.value)}
                   placeholder="0812..."
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email (Opsional jika ada WA)</label>
+                <input 
+                  type="email" 
+                  value={newEmail} 
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="email@example.com"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
               </div>
               <div className="flex justify-end gap-3 mt-6">
@@ -264,11 +290,13 @@ export const Contacts: React.FC = () => {
             
             <div className="mb-4">
               <p className="text-sm text-gray-500">Penerima:</p>
-              <p className="font-medium">{activeContact.name} ({activeContact.phone})</p>
+              <p className="font-medium">{activeContact.name}</p>
+              {activeContact.phone && <p className="font-medium text-sm text-gray-600">WA: {activeContact.phone}</p>}
+              {activeContact.email && <p className="font-medium text-sm text-gray-600">Email: {activeContact.email}</p>}
             </div>
 
             <div className="bg-green-50 border border-green-100 rounded-lg p-4 mb-6 text-sm text-gray-800 whitespace-pre-wrap max-h-60 overflow-y-auto">
-              {personalizeMessage(template.content, activeContact.name, activeContact.phone)}
+              {personalizeMessage(template.content, activeContact.name, activeContact.phone || '-')}
             </div>
 
             <div className="flex justify-end gap-3">
@@ -282,7 +310,7 @@ export const Contacts: React.FC = () => {
                 onClick={handleOpenWhatsApp}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
               >
-                Buka WhatsApp
+                {activeContact.phone ? 'Buka WhatsApp' : 'Buka Email'}
               </button>
             </div>
           </div>
@@ -296,9 +324,9 @@ export const Contacts: React.FC = () => {
             <div className="mx-auto w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4">
               <AlertTriangle className="w-6 h-6" />
             </div>
-            <h2 className="text-xl font-bold mb-2">WhatsApp Telah Dibuka</h2>
+            <h2 className="text-xl font-bold mb-2">Aplikasi Telah Dibuka</h2>
             <p className="text-gray-600 mb-6">
-              Apakah kamu sudah menekan tombol <strong>Send / Kirim</strong> di WhatsApp untuk <strong>{confirmSendContact.name}</strong>?
+              Apakah kamu sudah menekan tombol <strong>Send / Kirim</strong> di WhatsApp / Email untuk <strong>{confirmSendContact.name}</strong>?
             </p>
             
             <div className="flex flex-col sm:flex-row justify-center gap-3">
