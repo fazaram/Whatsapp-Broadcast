@@ -28,7 +28,8 @@ export const isValidEmail = (email: string): boolean => {
 
 export const generateWhatsAppLink = (phone: string, text: string): string => {
   const formattedPhone = formatPhoneNumber(phone);
-  return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(text)}`;
+  // Menggunakan api.whatsapp.com lebih stabil untuk menangani encoding karakter khusus/emoji dibandingkan wa.me
+  return `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(text)}`;
 };
 
 export const personalizeMessage = (template: string, name: string, phone: string): string => {

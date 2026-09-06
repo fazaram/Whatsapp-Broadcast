@@ -25,7 +25,6 @@ export const Import: React.FC = () => {
     }
 
     const headers = Object.keys(data[0] || {});
-    const lowerHeaders = headers.map(h => h.toLowerCase().trim());
     
     const findKey = (keywords: string[]) => {
       return headers.find(h => keywords.some(k => h.toLowerCase().trim().includes(k)));

@@ -8,6 +8,7 @@ export const useAppStore = create<AppState>()(
       contacts: [],
       template: {
         content: 'Halo {nama},\n\nKami ingin menginformasikan bahwa promo terbaru kami sudah tersedia.\n\nTerima kasih.',
+        imageAttachment: null,
       },
       addContact: (contact) =>
         set((state) => ({
@@ -31,9 +32,12 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           contacts: state.contacts.filter((c) => c.id !== id),
         })),
-      updateTemplate: (content) =>
-        set(() => ({
-          template: { content },
+      updateTemplate: (content, imageAttachment) =>
+        set((state) => ({
+          template: { 
+            content, 
+            imageAttachment: imageAttachment !== undefined ? imageAttachment : state.template.imageAttachment 
+          },
         })),
       importContacts: (newContacts) =>
         set((state) => {
@@ -62,7 +66,10 @@ export const useAppStore = create<AppState>()(
       clearAllData: () =>
         set(() => ({
           contacts: [],
-          template: { content: 'Halo {nama},\n\nKami ingin menginformasikan bahwa promo terbaru kami sudah tersedia.\n\nTerima kasih.' },
+          template: { 
+            content: 'Halo {nama},\n\nKami ingin menginformasikan bahwa promo terbaru kami sudah tersedia.\n\nTerima kasih.',
+            imageAttachment: null
+          },
         })),
     }),
     {

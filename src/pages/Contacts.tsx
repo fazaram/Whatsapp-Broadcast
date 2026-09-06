@@ -5,6 +5,8 @@ import type { SendStatus, Contact } from '../types';
 import { Search, Plus, Trash2, CheckCircle2, MessageCircle, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { copyImageToClipboard } from '../utils/imageUtils';
+
 export const Contacts: React.FC = () => {
   const { contacts, template, addContact, deleteContact, updateContactStatus } = useAppStore();
   
@@ -75,10 +77,21 @@ export const Contacts: React.FC = () => {
     setActiveContact(contact);
   };
 
-  const handleOpenWhatsApp = () => {
+  const handleOpenWhatsApp = async () => {
     if (!activeContact) return;
     const msg = personalizeMessage(template.content, activeContact.name, activeContact.phone || '-');
     
+    // Copy image to clipboard if exists
+    if (template.imageAttachment) {
+      toast.loading('Menyiapkan gambar...', { id: 'clipboard' });
+      const success = await copyImageToClipboard(template.imageAttachment);
+      if (success) {
+        toast.success('Gambar disalin! Tekan Ctrl+V di WhatsApp', { id: 'clipboard', duration: 4000 });
+      } else {
+        toast.error('Gagal menyalin gambar ke clipboard', { id: 'clipboard' });
+      }
+    }
+
     if (activeContact.phone) {
       const link = generateWhatsAppLink(activeContact.phone, msg);
       window.open(link, '_blank');
